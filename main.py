@@ -2,7 +2,10 @@ from pyspark.sql import SparkSession
 from pyspark.ml import Pipeline
 
 from DataManipulation import DataManipulation
+from FilterDepartment import FilterDepartment
 from ImputePrice import ImputePrice
+from LagFeature import LagFeature
+from LogTransformation import LogTransformation
 from MonthlyAggregate import MonthlyAggregate
 from NegativeSales import NegativeSales
 
@@ -19,10 +22,12 @@ if __name__ == '__main__':
 
     data = DataManipulation()
     df = data.get_data()
-    # store = input()
-    df = data.filter_store(df, "WI_1")
 
-    imputeNegativePrice = ImputePrice()
+    #df = data.filter_store(df, "WI_1")
+    filterDepartment = FilterDepartment(inputCol="FOODS_1", filterCol="dept_id")
+
+    # filterStore = FilterStore()
+    imputePrice = ImputePrice()
     negativeSales = NegativeSales(column="sales")
     aggregate = MonthlyAggregate(columns=["store_id", "dept_id", "year", "month"],
                                  expressions={"sales": "sum",
@@ -31,6 +36,14 @@ if __name__ == '__main__':
                                               "event_name_2": "count",
                                               "snap_WI": "sum"}
                                  )
-    transformed = Pipeline(stages=[imputeNegativePrice, negativeSales, aggregate]).fit(df).transform(df)
+    logTransformation = LogTransformation(inputCols=["sales"])
+    lagFeatures = LagFeature(partitionBy=["store_id", "dept_id"],
+                             orderBy=["year", "month"],
+                             lags=[1, 3, 12],
+                             target="sales"
+                             )
+
+    transformed = Pipeline(stages=[filterDepartment, imputePrice, negativeSales, aggregate,
+                                   logTransformation, lagFeatures]).fit(df).transform(df)
 
     print(transformed.show(5))

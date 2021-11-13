@@ -5,7 +5,7 @@ from pyspark.sql import Window
 from pyspark.sql.functions import lag
 
 
-class Lags(Transformer):
+class LagFeature(Transformer):
     partitionBy = Param(
         Params._dummy(),
         "partitionBy",
@@ -38,7 +38,7 @@ class Lags(Transformer):
     def __init__(self, inputCol=None, outputCol=None, partitionBy=None, orderBy=None,
                  lags=None, target=None):
         super().__init__()
-        self._setDefault(columns=None, expressions=None)
+        self._setDefault(partitionBy=None, orderBy=None, lags=None, target=None)
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
@@ -69,5 +69,9 @@ class Lags(Transformer):
         windowSpec = Window.partitionBy(partitionBy).orderBy(orderBy)
         for lag_val in lags:
             df = df.withColumn('lag_' + str(lag_val), lag(target, lag_val).over(windowSpec))
+
+        for lag_val in lags:
+            name = "lag_{}".format(lag_val)
+            df = df.fillna({name: '0'})
 
         return df
