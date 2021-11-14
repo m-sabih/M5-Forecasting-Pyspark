@@ -7,9 +7,9 @@ class DataManipulation:
 
     def read_data(self):
         calendarDf = self.spark.read.option("inferSchema", "true").option("header", "true").csv("./data/calendar.csv")
-        modifiedSalesTrainDf = self.spark.read.option("inferSchema", "true").option("header", "true")\
+        modifiedSalesTrainDf = self.spark.read.option("inferSchema", "true").option("header", "true") \
             .csv("./data/modifiedsalesTrainDf.csv")
-        sellPricesDf = self.spark.read.option("inferSchema", "true").option("header", "true")\
+        sellPricesDf = self.spark.read.option("inferSchema", "true").option("header", "true") \
             .csv("./data/sell_prices.csv")
         return calendarDf, modifiedSalesTrainDf, sellPricesDf
 
@@ -24,3 +24,7 @@ class DataManipulation:
     def filter_store(df, store_name):
         return df.filter(df.store_id == store_name)
 
+    @staticmethod
+    def train_test_split(df, year=2016):
+        train, test = df[df['year'] < year], df[df['year'] >= year]
+        return train, test

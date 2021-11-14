@@ -1,13 +1,17 @@
+from pyspark.ml.feature import VectorAssembler, StringIndexer
 from pyspark.sql import SparkSession
 from pyspark.ml import Pipeline
 
 from DataManipulation import DataManipulation
-from FilterDepartment import FilterDepartment
-from ImputePrice import ImputePrice
-from LagFeature import LagFeature
-from LogTransformation import LogTransformation
-from MonthlyAggregate import MonthlyAggregate
-from NegativeSales import NegativeSales
+from Estimators.XGBoost import XGBoost
+from Transformers.FilterDepartment import FilterDepartment
+from Transformers.ImputePrice import ImputePrice
+from Transformers.LagFeature import LagFeature
+from Transformers.LogTransformation import LogTransformation
+from Transformers.MonthlyAggregate import MonthlyAggregate
+from Transformers.NegativeSales import NegativeSales
+
+import pandas as pd
 
 
 def initialize_session(name):
@@ -23,7 +27,7 @@ if __name__ == '__main__':
     data = DataManipulation()
     df = data.get_data()
 
-    #df = data.filter_store(df, "WI_1")
+    # df = data.filter_store(df, "WI_1")
     filterDepartment = FilterDepartment(inputCol="FOODS_1", filterCol="dept_id")
 
     # filterStore = FilterStore()
@@ -43,7 +47,25 @@ if __name__ == '__main__':
                              target="sales"
                              )
 
-    transformed = Pipeline(stages=[filterDepartment, imputePrice, negativeSales, aggregate,
-                                   logTransformation, lagFeatures]).fit(df).transform(df)
+    storeIndexer = StringIndexer(inputCol="store_id", outputCol="store_id_index")
+    yearIndexer = StringIndexer(inputCol="year", outputCol="year_index")
 
-    print(transformed.show(5))
+    vector = VectorAssembler(inputCols=["store_id_index", "month", "year_index", "lag_1", "lag_3", "lag_12",
+                                        "event_name_1", "event_name_2", "sell_price"],
+                             outputCol="features")
+
+    transformed = Pipeline(stages=[filterDepartment, imputePrice, negativeSales, aggregate,
+                                   logTransformation, lagFeatures, storeIndexer,
+                                   yearIndexer, vector]).fit(df).transform(df)
+
+    print(transformed.columns)
+    print(transformed.show(10))
+
+    train, test = data.train_test_split(transformed)
+    inputColumns = ["store_id_index", "month", "year_index", "lag_1",
+                    "lag_3", "lag_12", "event_name_1", "event_name_2",
+                    "sell_price"]
+    xgbModel = XGBoost(inputCols=inputColumns, labelCol="sales").fit(train)
+    pred = xgbModel.transform(test)
+    p = pd.DataFrame([pred, test])
+    print(p)
