@@ -40,8 +40,6 @@ class XGBoostModel(Model, HasLabelCol, HasInputCols, HasPredictionCol):
         model = self.getModel()
         X = df[featureCols].toPandas()
         y = df.select(labelCol).toPandas()
-        df = df.
         prediction = model.predict(X)
-        p = pd.DataFrame({'prediction': prediction, 'actual': y[labelCol]})
-        print(p)
-        return p
+        df = df.withColumn(pred, prediction)
+        return df
