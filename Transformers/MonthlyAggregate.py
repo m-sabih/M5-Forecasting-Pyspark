@@ -1,6 +1,7 @@
 from pyspark import keyword_only
 from pyspark.ml import Transformer
 from pyspark.ml.param import Param, Params, TypeConverters
+from Logging import Logging
 
 
 class MonthlyAggregate(Transformer):
@@ -20,6 +21,7 @@ class MonthlyAggregate(Transformer):
 
     @keyword_only
     def __init__(self, inputCol=None, outputCol=None, columns=None, expressions=None):
+        self.log = Logging.getLogger()
         super().__init__()
         self._setDefault(columns=None, expressions=None)
         kwargs = self._input_kwargs
@@ -37,6 +39,7 @@ class MonthlyAggregate(Transformer):
         return self._set(**kwargs)
 
     def _transform(self, df):
+        self.log.info("Grouping data to maintain monthly sales")
         groupByColumns = self.getColumns()
         aggregateExpression = dict(self.getExpression())
         df_agg = df.groupBy(groupByColumns).agg(aggregateExpression)

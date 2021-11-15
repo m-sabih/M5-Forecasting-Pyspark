@@ -1,7 +1,9 @@
 from pyspark import keyword_only
 from pyspark.ml import Transformer
 from pyspark.ml.param import Param, Params, TypeConverters
-from pyspark.sql import functions as F
+from pyspark.sql import functions as F, SparkSession
+
+from Logging import Logging
 
 
 class NegativeSales(Transformer):
@@ -14,6 +16,7 @@ class NegativeSales(Transformer):
 
     @keyword_only
     def __init__(self, inputCol=None, outputCol=None, column=None):
+        self.log = Logging.getLogger()
         super().__init__()
         self._setDefault(column=None)
         kwargs = self._input_kwargs
@@ -28,6 +31,8 @@ class NegativeSales(Transformer):
         return self.getOrDefault(self.column)
 
     def _transform(self, df):
+        self.log.info("Filling negative sales with zero")
+
         column = self.getColumn()
         df.withColumn(column, F.when(df[column] < 0, 0).when(F.col(column).isNull(), 0).otherwise(F.col(column)))
         return df

@@ -4,6 +4,8 @@ from pyspark.ml.param import Param, Params, TypeConverters
 from pyspark.sql import Window
 from pyspark.sql.functions import lag
 
+from Logging import Logging
+
 
 class LagFeature(Transformer):
     partitionBy = Param(
@@ -37,6 +39,7 @@ class LagFeature(Transformer):
     @keyword_only
     def __init__(self, inputCol=None, outputCol=None, partitionBy=None, orderBy=None,
                  lags=None, target=None):
+        self.log = Logging.getLogger()
         super().__init__()
         self._setDefault(partitionBy=None, orderBy=None, lags=None, target=None)
         kwargs = self._input_kwargs
@@ -61,6 +64,8 @@ class LagFeature(Transformer):
         return self.getOrDefault(self.target)
 
     def _transform(self, df):
+        self.log.info("Adding lags")
+
         partitionBy = self.getPartitionBy()
         orderBy = self.getOrderBy()
         lags = self.getLags()

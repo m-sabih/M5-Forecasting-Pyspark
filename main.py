@@ -4,6 +4,7 @@ from pyspark.ml import Pipeline
 
 from DataManipulation import DataManipulation
 from Estimators.XGBoost import XGBoost
+from Logging import Logging
 from Transformers.FilterDepartment import FilterDepartment
 from Transformers.ImputePrice import ImputePrice
 from Transformers.LagFeature import LagFeature
@@ -13,9 +14,8 @@ from Transformers.NegativeSales import NegativeSales
 
 import pandas as pd
 
-
 def initialize_session(name):
-    return SparkSession.builder.master("local").appName(name). \
+    return SparkSession.builder.master("local[*]").appName(name). \
         config("spark.driver.bindAddress", "localhost"). \
         config("spark.ui.port", "4050"). \
         getOrCreate()
@@ -23,6 +23,8 @@ def initialize_session(name):
 
 if __name__ == '__main__':
     spark = initialize_session("Assignment")
+    log = Logging.getLogger()
+    log.info("Initializing session")
 
     data = DataManipulation()
     df = data.get_data()
@@ -50,16 +52,16 @@ if __name__ == '__main__':
     storeIndexer = StringIndexer(inputCol="store_id", outputCol="store_id_index")
     yearIndexer = StringIndexer(inputCol="year", outputCol="year_index")
 
-    vector = VectorAssembler(inputCols=["store_id_index", "month", "year_index", "lag_1", "lag_3", "lag_12",
-                                        "event_name_1", "event_name_2", "sell_price"],
-                             outputCol="features")
+    #vector = VectorAssembler(inputCols=["store_id_index", "month", "year_index", "lag_1", "lag_3", "lag_12",
+    #                                    "event_name_1", "event_name_2", "sell_price"],
+    #                         outputCol="features")
 
+    log.info("Initiating pipeline")
     transformed = Pipeline(stages=[filterDepartment, imputePrice, negativeSales, aggregate,
                                    logTransformation, lagFeatures, storeIndexer,
-                                   yearIndexer, vector]).fit(df).transform(df)
+                                   yearIndexer]).fit(df).transform(df)
 
-    print(transformed.columns)
-    print(transformed.show(10))
+    log.info("Preprocessing pipeline completed")
 
     train, test = data.train_test_split(transformed)
     inputColumns = ["store_id_index", "month", "year_index", "lag_1",
@@ -67,5 +69,4 @@ if __name__ == '__main__':
                     "sell_price"]
     xgbModel = XGBoost(inputCols=inputColumns, labelCol="sales").fit(train)
     pred = xgbModel.transform(test)
-    p = pd.DataFrame([pred, test])
-    print(p)
+    print(pred)
