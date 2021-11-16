@@ -11,8 +11,8 @@ from Transformers.LagFeature import LagFeature
 from Transformers.LogTransformation import LogTransformation
 from Transformers.MonthlyAggregate import MonthlyAggregate
 from Transformers.NegativeSales import NegativeSales
+import findspark
 
-import pandas as pd
 
 def initialize_session(name):
     return SparkSession.builder.master("local[*]").appName(name). \
@@ -22,7 +22,9 @@ def initialize_session(name):
 
 
 if __name__ == '__main__':
+    findspark.init()
     spark = initialize_session("Assignment")
+    spark.conf.set("spark.sql.execution.arrow.enabled", "true")
     log = Logging.getLogger()
     log.info("Initializing session")
 
@@ -45,14 +47,14 @@ if __name__ == '__main__':
     logTransformation = LogTransformation(inputCols=["sales"])
     lagFeatures = LagFeature(partitionBy=["store_id", "dept_id"],
                              orderBy=["year", "month"],
-                             lags=[1, 3, 12],
+                             lags=[i for i in range(1, 12)],
                              target="sales"
                              )
 
     storeIndexer = StringIndexer(inputCol="store_id", outputCol="store_id_index")
     yearIndexer = StringIndexer(inputCol="year", outputCol="year_index")
 
-    #vector = VectorAssembler(inputCols=["store_id_index", "month", "year_index", "lag_1", "lag_3", "lag_12",
+    # vector = VectorAssembler(inputCols=["store_id_index", "month", "year_index", "lag_1", "lag_3", "lag_12",
     #                                    "event_name_1", "event_name_2", "sell_price"],
     #                         outputCol="features")
 
@@ -64,9 +66,9 @@ if __name__ == '__main__':
     log.info("Preprocessing pipeline completed")
 
     train, test = data.train_test_split(transformed)
-    inputColumns = ["store_id_index", "month", "year_index", "lag_1",
-                    "lag_3", "lag_12", "event_name_1", "event_name_2",
-                    "sell_price"]
+    inputColumns = ["store_id_index", "month", "year_index", "event_name_1", "event_name_2", "sell_price"]
+    inputColumns.extend(["lag_{}".format(i) for i in range(1, 12)])
+
     xgbModel = XGBoost(inputCols=inputColumns, labelCol="sales").fit(train)
     pred = xgbModel.transform(test)
-    print(pred)
+    print(pred.show(10))
