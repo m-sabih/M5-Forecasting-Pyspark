@@ -2,12 +2,16 @@ from pyspark import keyword_only
 from pyspark.ml import Model
 from pyspark.ml.param import Param, Params
 from pyspark.ml.param.shared import HasLabelCol, HasPredictionCol, HasInputCols
+from pyspark.sql import SparkSession
 
 from Logging import Logging
 import pandas as pd
+import findspark
+import pickle
 
 
 class XGBoostModel(Model, HasLabelCol, HasInputCols, HasPredictionCol):
+    findspark.init()
     model = Param(
         Params._dummy(),
         "model",
@@ -17,6 +21,7 @@ class XGBoostModel(Model, HasLabelCol, HasInputCols, HasPredictionCol):
 
     @keyword_only
     def __init__(self, labelCol=None, inputCols=None, predictionCol=None, model=None):
+        self.spark = SparkSession.builder.getOrCreate()
         self.log = Logging.getLogger()
         super().__init__()
         self._setDefault(model=None)
@@ -38,8 +43,22 @@ class XGBoostModel(Model, HasLabelCol, HasInputCols, HasPredictionCol):
         labelCol = self.getLabelCol()
         pred = self.getPredictionCol()
         model = self.getModel()
+
         X = df[featureCols].toPandas()
         y = df.select(labelCol).toPandas()
+
         prediction = model.predict(X)
-        df = df.withColumn(pred, prediction)
-        return df
+        resultDf = pd.DataFrame({pred: prediction, 'actual': y[labelCol]})
+        result = self.spark.createDataFrame(resultDf)
+        result.createOrReplaceTempView('result')
+        return result
+
+    def save(self, modelName):
+        model = self.getModel()
+        filename = "{}.sav".format(modelName)
+        pickle.dump(model, open(filename, 'wb'))
+
+    @staticmethod
+    def load(name):
+        return pickle.load(open(name, 'rb'))
+
