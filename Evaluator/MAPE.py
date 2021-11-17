@@ -2,7 +2,7 @@ from pyspark import keyword_only
 from pyspark.ml.evaluation import Evaluator
 from pyspark.ml.param.shared import HasLabelCol, HasPredictionCol
 from pyspark.sql import DataFrame
-from  pyspark.sql.functions import abs, mean
+from pyspark.sql.functions import abs, mean
 
 
 class MAPE(Evaluator, HasLabelCol, HasPredictionCol):
@@ -19,15 +19,15 @@ class MAPE(Evaluator, HasLabelCol, HasPredictionCol):
         kwargs = self._input_kwargs
         self._set(**kwargs)
 
-    def get_label_col(self):
+    def getLabelCol(self):
         return self.getOrDefault(self.labelCol)
 
-    def get_prediction_col(self):
+    def getPredictionCol(self):
         return self.getOrDefault(self.predictionCol)
 
     def _evaluate(self, df: DataFrame):
-        labelCol = self.get_label_col()
-        predictionCol = self.get_prediction_col()
+        labelCol = self.getLabelCol()
+        predictionCol = self.getPredictionCol()
         score = df.select(mean(abs((df[labelCol] - df[predictionCol])/df[labelCol]))*100)
 
         return score.first()[0]
