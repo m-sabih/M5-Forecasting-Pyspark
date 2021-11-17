@@ -8,13 +8,12 @@ from Logging import Logging
 from pyspark.ml.regression import RandomForestRegressor
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from functools import partial
-import numpy as np
 
 
 class RandomForest(Estimator, HasLabelCol, HasFeaturesCol, HasPredictionCol):
     searchSpace = {
-        'maxDepth': hp.choice('maxDepth', np.arange(1, 15, 1, dtype=int)),
-        'maxBins': hp.choice('maxBins', np.arange(30, 70, 2, dtype=int)),
+        'maxDepth': hp.choice('maxDepth', range(1, 15, 1)),
+        'maxBins': hp.choice('maxBins', range(30, 70, 2)),
         'numTrees': hp.choice('numTrees', range(10, 1000, 5)),
         'minInfoGain': hp.choice('minInfoGain', [0, 0.1, 0.3, 0.7]),
         'subsamplingRate': hp.choice('subsamplingRate', [1, 0.9])

@@ -14,12 +14,12 @@ import numpy as np
 
 class XGBoost(Estimator, HasLabelCol, HasInputCols, HasPredictionCol):
     searchSpace = {
-        'max_depth': hp.choice('max_depth', np.arange(3, 15, 1, dtype=int)),
-        'n_estimators': hp.choice('n_estimators', np.arange(10, 1000, 5, dtype=int)),
+        'max_depth': hp.choice('max_depth', np.arange(10, 25, 1, dtype=int)),
+        'n_estimators': hp.choice('n_estimators', np.arange(10, 1000, 10, dtype=int)),
         'colsample_bytree': hp.quniform('colsample_bytree', 0.5, 1.0, 0.1),
-        'min_child_weight': hp.choice('min_child_weight', np.arange(50, 350, 5, dtype=int)),
-        'subsample': hp.quniform('subsample', 0.7, 1, 0.1),
-        'learning_rate': hp.choice('learning_rate', np.arange(0.01, 0.3, 0.1, dtype=int)),
+        'min_child_weight': hp.choice('min_child_weight', np.arange(250, 350, 10, dtype=int)),
+        'subsample': hp.quniform('subsample', 0.7, 0.9, 0.1),
+        'eta': hp.quniform('eta', 0.1, 0.3, 0.1),
     }
 
     @keyword_only
