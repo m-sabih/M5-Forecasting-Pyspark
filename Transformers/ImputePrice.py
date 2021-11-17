@@ -1,5 +1,7 @@
 from pyspark import keyword_only
 from pyspark.ml import Transformer
+from pyspark.sql import Window
+from pyspark.sql.functions import when, col, avg
 
 from Logging import Logging
 
@@ -20,9 +22,8 @@ class ImputePrice(Transformer):
     def _transform(self, df):
         self.log.info("Filling null prices with mean")
 
-        df_aggregated = df.groupBy(["id"]).avg("sell_price")
-        df_aggregated = df_aggregated.withColumnRenamed("id", "agg_id")
-        df = df.join(df_aggregated, df["id"] == df_aggregated["agg_id"], "inner")
-        df = df.drop("agg_id", "sell_price")
-        df = df.withColumnRenamed("avg(sell_price)", "sell_price")
+        w = Window.partitionBy(df.id)
+        df = df.withColumn('sell_price', when(col('sell_price').isNull(),
+                                              avg(col('sell_price')).over(w))
+                           .otherwise(col('sell_price')))
         return df
