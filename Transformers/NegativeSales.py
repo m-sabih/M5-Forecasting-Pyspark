@@ -1,7 +1,7 @@
 from pyspark import keyword_only
 from pyspark.ml import Transformer
 from pyspark.ml.param import Param, Params, TypeConverters
-from pyspark.sql import functions as F, SparkSession
+from pyspark.sql import functions as F
 
 from Logging import Logging
 
@@ -34,5 +34,5 @@ class NegativeSales(Transformer):
         self.log.info("Filling negative sales with zero")
 
         column = self.getColumn()
-        df.withColumn(column, F.when(df[column] < 0, 0).when(F.col(column).isNull(), 0).otherwise(F.col(column)))
-        return df
+        return df.withColumn(column, F.when(df[column] < 0, 0).when(F.col(column).isNull(), 0)
+                             .otherwise(F.col(column)))

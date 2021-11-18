@@ -13,7 +13,6 @@ from functools import partial
 class RandomForest(Estimator, HasLabelCol, HasFeaturesCol, HasPredictionCol):
     searchSpace = {
         'maxDepth': hp.choice('maxDepth', range(1, 15, 1)),
-        'maxBins': hp.choice('maxBins', range(30, 70, 2)),
         'numTrees': hp.choice('numTrees', range(10, 1000, 5)),
         'minInfoGain': hp.choice('minInfoGain', [0, 0.1, 0.3, 0.7]),
         'subsamplingRate': hp.choice('subsamplingRate', [1, 0.9])

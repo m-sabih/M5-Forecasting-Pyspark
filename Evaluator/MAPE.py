@@ -28,6 +28,5 @@ class MAPE(Evaluator, HasLabelCol, HasPredictionCol):
     def _evaluate(self, df: DataFrame):
         labelCol = self.getLabelCol()
         predictionCol = self.getPredictionCol()
-        score = df.select(mean(abs((df[labelCol] - df[predictionCol]) / df[labelCol])) * 100)
-
+        score = df.select(mean(abs((df[labelCol] - df[predictionCol]) / df[labelCol])))
         return score.first()[0]
