@@ -48,7 +48,8 @@ class XGBoostModel(Model, HasLabelCol, HasInputCols, HasPredictionCol):
         y = df.select(labelCol).toPandas()
 
         prediction = model.predict(X)
-        resultDf = pd.DataFrame({pred: prediction, 'actual': y[labelCol]})
+        resultDf = pd.DataFrame({"store": X["store_id_index"], "year": X["year_index"], "month": X["month"],
+                                 pred: prediction, 'actual': y[labelCol]})
         result = self.spark.createDataFrame(resultDf)
         result.createOrReplaceTempView('result')
         return result
