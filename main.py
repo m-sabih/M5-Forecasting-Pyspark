@@ -3,6 +3,7 @@ from pyspark.sql import SparkSession
 from pyspark.ml import Pipeline
 
 from DataManipulation import DataManipulation
+from Estimators.ProphetEstimator import ProphetEstimator
 from Estimators.RandomForest import RandomForest
 from Estimators.XGBoost import XGBoost
 from Logging import Logging
@@ -13,7 +14,9 @@ from Transformers.LogTransformation import LogTransformation
 from Transformers.MonthlyAggregate import MonthlyAggregate
 from Transformers.NegativeSales import NegativeSales
 import findspark
-
+from functools import reduce
+from pyspark.sql import DataFrame
+import pyspark.sql.functions as F
 from Transformers.Scaling import Scaling
 
 
@@ -22,6 +25,10 @@ def initialize_session(name):
         config("spark.driver.bindAddress", "localhost"). \
         config("spark.ui.port", "4050"). \
         getOrCreate()
+
+
+def union_all(*dfs):
+    return reduce(DataFrame.union, dfs)
 
 
 if __name__ == '__main__':
@@ -79,3 +86,33 @@ if __name__ == '__main__':
     rfModel = RandomForest(inputCols=inputColumns, labelCol="sales").fit(train)
     predRf = rfModel.transform(test)
     print(predRf.show(10))
+
+    transformedProphet = transformed.withColumn("ds", F.to_date(F.concat_ws("-", "Year", "month")))
+    trainProphet, testProphet = data.train_test_split(transformedProphet)
+
+
+    def getStores(data):
+        storesName = data.select("store_id").distinct().collect()
+        stores = {}
+        for store in storesName:
+            stores[store.store_id] = data.filter(df["store_id"] == store.store_id)
+        return stores
+
+
+    trainStores = getStores(trainProphet)
+    testStores = getStores(testProphet)
+
+    models = {}
+    for key, value in trainStores.items():
+        prophetModel = ProphetEstimator(labelCol="sales").fit(value)
+        models[key] = prophetModel
+
+    predictions = {}
+    for key, value in models.items():
+        data = testStores[key]
+        pred = value.transform(data)
+        predictions[key] = pred
+
+    predProphet = union_all(*predictions.values())
+
+    print(predProphet.show(10))
