@@ -47,7 +47,8 @@ class ProphetModel(Model, HasLabelCol, HasInputCols, HasPredictionCol):
         X_test = X[["ds"]]
 
         prediction = model.predict(X_test)
-        prediction = prediction[["yhat"]]
+        prediction = prediction.rename(columns={'yhat': pred})
+        prediction = prediction[[pred]]
         resultDf = pd.DataFrame({"store": X["store_id"], "year": X["year"], "month": X["month"],
                                  'sales': X["y"]})
         resultDf = pd.concat([resultDf, prediction], axis=1)
