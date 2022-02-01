@@ -7,7 +7,7 @@ from DataManipulation import DataManipulation
 from Evaluator.MAPE import MAPE
 from Logging import Logging
 from Models.XGBoostModel import XGBoostModel
-from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+from hyperopt import fmin, tpe, hp, STATUS_OK, Trials, space_eval
 from functools import partial
 import numpy as np
 
@@ -35,7 +35,7 @@ class XGBoost(Estimator, HasLabelCol, HasInputCols, HasPredictionCol):
         kwargs = self._input_kwargs
         return self._set(**kwargs)
 
-    def trainModel(self, X_train, y_train, validation, params):
+    def trainModel(self, X_train, y_train, X_val, y_val, params):
         features = self.getInputCols()
         labels = self.getLabelCol()
         predCol = self.getPredictionCol()
@@ -46,11 +46,14 @@ class XGBoost(Estimator, HasLabelCol, HasInputCols, HasPredictionCol):
             xgboost = xgb.XGBRegressor(**params)
 
         xgboost = xgboost.fit(X_train, y_train)
-        predictions = XGBoostModel(labelCol=labels, inputCols=features, predictionCol=predCol, model=xgboost) \
-            .transform(validation)
+        #predictions = XGBoostModel(labelCol=labels, inputCols=features, predictionCol=predCol, model=xgboost) \
+        #    .transform(validation)
+        predictions = xgboost.predict(X_val)
 
-        mape = MAPE(labelCol="actual", predictionCol=predCol)
-        score = mape.evaluate(predictions)
+        #mape = MAPE(labelCol="actual", predictionCol=predCol)
+        #score = mape.evaluate(predictions)
+
+        score = np.mean(np.abs((y_val.sales - predictions) / y_val.sales))
         print("score:", score)
         return {'loss': score, 'status': STATUS_OK, 'model': xgboost}
 
@@ -66,16 +69,19 @@ class XGBoost(Estimator, HasLabelCol, HasInputCols, HasPredictionCol):
 
         X_train = train[featuresCol].toPandas()
         y_train = train.select(labelCol).toPandas()
+        X_val = validation[featuresCol].toPandas()
+        y_val = validation.select(labelCol).toPandas()
 
-        self.trainModel(X_train, y_train, validation, None)
+        self.trainModel(X_train, y_train, X_val, y_val, None)
 
         trials = Trials()
-        best = fmin(partial(self.trainModel, X_train, y_train, validation),
+        best = fmin(partial(self.trainModel, X_train, y_train, X_val, y_val),
                     space=XGBoost.searchSpace,
                     algo=tpe.suggest,
                     max_evals=10,
                     trials=trials)
-        print(best)
+        bestParams = space_eval(self.searchSpace, best)
+        print(bestParams)
 
         X = df[featuresCol].toPandas()
         y = df.select(labelCol).toPandas()

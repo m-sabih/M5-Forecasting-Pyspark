@@ -6,16 +6,17 @@ from DataManipulation import DataManipulation
 from Evaluator.MAPE import MAPE
 from Logging import Logging
 from pyspark.ml.regression import RandomForestRegressor
-from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+from hyperopt import fmin, tpe, hp, STATUS_OK, Trials, space_eval
 from functools import partial
 
 
 class RandomForest(Estimator, HasLabelCol, HasFeaturesCol, HasPredictionCol):
     searchSpace = {
-        'maxDepth': hp.choice('maxDepth', range(1, 15, 1)),
-        'numTrees': hp.choice('numTrees', range(10, 1000, 5)),
-        'minInfoGain': hp.choice('minInfoGain', [0, 0.1, 0.3, 0.7]),
-        'subsamplingRate': hp.choice('subsamplingRate', [1, 0.9])
+        'maxDepth': hp.quniform('maxDepth', 1, 25, 1),
+        'numTrees': hp.quniform('numTrees', 10, 1000, 5),
+        'minInfoGain': hp.quniform('minInfoGain', 0.0, 0.7, 0.1),
+        'subsamplingRate': hp.choice('subsamplingRate', [1, 0.9]),
+        'maxBins': hp.quniform('maxBins', 40, 75, 1)
     }
 
     @keyword_only
@@ -64,7 +65,9 @@ class RandomForest(Estimator, HasLabelCol, HasFeaturesCol, HasPredictionCol):
                     algo=tpe.suggest,
                     max_evals=10,
                     trials=trials)
-        print(best)
+
+        bestParams = space_eval(self.searchSpace, best)
+        print(bestParams)
 
         rf = RandomForestRegressor(featuresCol=featuresCol, labelCol=labelCol, **best)
         return rf.fit(train)

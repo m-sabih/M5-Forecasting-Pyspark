@@ -1,7 +1,7 @@
 from functools import partial
 
 import numpy as np
-from hyperopt import STATUS_OK, Trials, fmin, hp, tpe
+from hyperopt import STATUS_OK, Trials, fmin, hp, tpe, space_eval
 from pyspark import keyword_only
 from pyspark.ml.param.shared import HasLabelCol, HasPredictionCol, HasInputCols
 from pyspark.ml import Estimator
@@ -34,26 +34,26 @@ class ProphetEstimator(Estimator, HasLabelCol, HasInputCols, HasPredictionCol):
         return self._set(**kwargs)
 
     def trainModel(self, train, validation, params):
-        labels = self.getLabelCol()
-        predCol = self.getPredictionCol()
-
         if params is None:
             prophet = Prophet()
         else:
             prophet = Prophet(**params)
 
-        prophetModel = prophet.fit(train)
-        predictions = ProphetModel(labelCol=labels, predictionCol=predCol, model=prophetModel) \
-            .transform(validation)
+        prophetModel = prophet.fit(train, iter=3000)
+        #predictions = ProphetModel(labelCol=labels, predictionCol=predCol, model=prophetModel) \
+        #    .transform(validation)
+        predictions = prophetModel.predict(validation)
 
-        mape = MAPE(labelCol="sales", predictionCol=predCol)
-        score = mape.evaluate(predictions)
+        #mape = MAPE(labelCol="sales", predictionCol=predCol)
+        #score = mape.evaluate(predictions)
+
+        score = np.mean(np.abs((validation['y'] - predictions['yhat']) / validation['y']))
         print("score:", score)
         return {'loss': score, 'status': STATUS_OK, 'model': prophetModel}
 
     def _fit(self, df):
-        self.log.info("Training XGBoost")
-        print("Training XGBoost")
+        self.log.info("Training Prophet")
+        print("Training Prophet")
         labelCol = self.getLabelCol()
         predCol = self.getPredictionCol()
 
@@ -63,6 +63,7 @@ class ProphetEstimator(Estimator, HasLabelCol, HasInputCols, HasPredictionCol):
 
         train = train.select("ds", "y")
         train = train.toPandas()
+        validation = validation.toPandas()
 
         self.trainModel(train, validation, None)
 
@@ -70,12 +71,13 @@ class ProphetEstimator(Estimator, HasLabelCol, HasInputCols, HasPredictionCol):
         best = fmin(partial(self.trainModel, train, validation),
                     space=ProphetEstimator.searchSpace,
                     algo=tpe.suggest,
-                    max_evals=10,
+                    max_evals=5,
                     trials=trials)
-        print(best)
+        bestParams = space_eval(self.searchSpace, best)
+        print(bestParams)
 
         X = df.toPandas()
-        prophetBest = Prophet(**best)
+        prophetBest = Prophet(**bestParams)
         prophetBest = prophetBest.fit(X)
         return ProphetModel(labelCol=labelCol, predictionCol=predCol, model=prophetBest)
 
